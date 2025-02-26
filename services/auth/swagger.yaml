@@ -1,0 +1,115 @@
+# Określenie wersji OpenAPI, której używa dokumentacja.
+openapi: 3.0.0 
+# Sekcja z informacjami o API.
+info: 
+  # Tytuł dokumentacji API.
+  title: Auth Service API
+  # Krótki opis API.
+  description: API documentation for the Auth Service 
+  # Wersja API.
+  version: 1.0.0
+# Definicja serwerów, na których działa API.
+servers: 
+  # URL lokalnego serwera API.
+  - url: http://localhost:4000 
+    # Opis serwera (np. środowisko lokalne).
+    description: Local server 
+
+# Główna sekcja definiująca endpointy API.
+paths: 
+  # Endpoint dla rejestracji użytkownika.
+  /auth/register: 
+    # Metoda HTTP dla tego endpointu (POST).
+    post: 
+      # Krótkie podsumowanie funkcjonalności endpointu.
+      summary: Rejestracja użytkownika 
+      # Tag grupujący endpointy związane z autoryzacją.
+      tags: 
+        # Tag określający, że endpoint należy do kategorii Auth.
+        - Auth 
+      # Opis treści żądania (request body).
+      requestBody: 
+        # Określenie, że treść żądania jest wymagana.
+        required: true 
+        # Rodzaj danych wysyłanych w treści żądania.
+        content:
+          # Dane w formacie JSON. 
+          application/json: 
+            # Schemat definiujący strukturę danych żądania.
+            schema: 
+              # Dane w treści żądania to obiekt.
+              type: object 
+              # Pola dostępne w treści żądania.
+              properties: 
+                # Pole "email".
+                email: 
+                  # Typ danych pola to ciąg znaków.
+                  type: string 
+                  # Przykładowa wartość dla pola "email".
+                  example: "example@example.com"
+                # Pole "password".
+                password: 
+                  # Typ danych pola to ciąg znaków.
+                  type: string 
+                  # Przykładowa wartość dla pola "password".
+                  example: "password123" 
+      # Definicja możliwych odpowiedzi serwera.
+      responses: 
+        # Kod HTTP
+        '201':
+          # Opis odpowiedzi.
+          description: Użytkownik zarejestrowany 
+        # Kod HTTP 400 - błąd walidacji żądania.
+        '400': 
+          description: Błąd walidacji
+
+  # Endpoint dla logowania użytkownika.
+  /auth/login: 
+    # Metoda HTTP dla tego endpointu (POST).
+    post: 
+      # Krótkie podsumowanie funkcjonalności endpointu.
+      summary: Logowanie użytkownika 
+      # Tag grupujący endpointy związane z autoryzacją.
+      tags: 
+        # Tag określający, że endpoint należy do kategorii Auth.
+        - Auth 
+      # Opis treści żądania (request body).
+      requestBody: 
+        # Określenie, że treść żądania jest wymagana.
+        required: true 
+        # Rodzaj danych wysyłanych w treści żądania.
+        content: 
+          # Dane w formacie JSON.
+          application/json: 
+            # Schemat definiujący strukturę danych żądania.
+            schema:
+              # Dane w treści żądania to obiekt. 
+              type: object 
+              # Pola dostępne w treści żądania.
+              properties: 
+                email:
+                  type: string
+                  # Przykładowa wartość dla pola "email".
+                  example: "example@example.com" 
+                password: 
+                  type: string 
+                  example: "password123"
+      # Definicja możliwych odpowiedzi serwera.
+      responses: 
+        '200':
+          description: Zalogowano pomyślnie
+        '400':
+          description: Nieprawidłowe dane logowania
+
+# Sekcja z komponentami wielokrotnego użycia.
+components: 
+  # Definicja mechanizmów bezpieczeństwa.
+  securitySchemes: 
+    # Mechanizm bezpieczeństwa typu Bearer (JWT).
+    bearerAuth: 
+      # Typ zabezpieczenia to HTTP.
+      type: http 
+      # Schemat uwierzytelniania Bearer.
+      scheme: bearer 
+      # Format tokenu to JWT.
+      bearerFormat: JWT 

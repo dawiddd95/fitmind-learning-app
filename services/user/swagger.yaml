@@ -1,0 +1,263 @@
+# Specyfikacja OpenAPI w wersji 3.0.0
+openapi: 3.0.0
+# Informacje o API, takie jak tytuł, wersja i opis
+info:
+  title: User Service API # Tytuł API
+  version: 1.0.0 # Wersja API
+  description: API do zarządzania użytkownikami, umożliwiające pobieranie, tworzenie, aktualizowanie i usuwanie danych użytkowników. # Krótki opis API
+
+# Definicja ścieżek API
+paths:
+  # Endpoint do operacji na użytkowniku po jego ID
+  /users/{id}:
+    # Metoda GET dla pobrania danych użytkownika
+    get:
+      summary: Pobierz dane użytkownika po ID # Opis, co robi endpoint
+      tags:
+        # Grupa tagów, do której należy endpoint (pomaga grupować endpointy w dokumentacji)
+        - Users 
+      parameters:
+        # Nazwa parametru
+        - name: id
+          # Lokalizacja parametru (w ścieżce URL)
+          in: path 
+          # Parametr jest wymagany
+          required: true 
+          # Opis parametru
+          description: ID użytkownika, który ma zostać pobrany 
+          schema:
+             # Typ danych parametru (liczba całkowita)
+            type: integer
+      responses:
+        # Kod odpowiedzi HTTP dla udanej operacji
+        200: 
+          description: Dane użytkownika zostały pomyślnie pobrane # Opis odpowiedzi
+          content:
+            # Typ odpowiedzi w formacie JSON
+            application/json: 
+              schema:
+                # Odniesienie do schematu użytkownika zdefiniowanego niżej
+                $ref: '#/components/schemas/User' 
+        # Kod odpowiedzi HTTP dla błędu "Nie znaleziono"
+        404: 
+          description: Użytkownik nie został znaleziony
+          content:
+            application/json:
+              schema:
+                # Odniesienie do schematu błędu
+                $ref: '#/components/schemas/Error' 
+
+    # Metoda PATCH dla aktualizacji danych użytkownika
+    patch:
+      summary: Zaktualizuj dane użytkownika
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID użytkownika, który ma zostać zaktualizowany
+          schema:
+            type: integer
+      # Definicja ciała zapytania
+      requestBody: 
+        # Ciało zapytania jest wymagane
+        required: true 
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate' # Odniesienie do schematu dla danych do aktualizacji
+      responses:
+        200:
+          description: Dane użytkownika zostały zaktualizowane
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          description: Użytkownik nie został znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    # Metoda DELETE dla usunięcia użytkownika
+    delete:
+      summary: Usuń użytkownika
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID użytkownika, który ma zostać usunięty
+          schema:
+            type: integer
+      responses:
+        204:
+          description: Użytkownik został pomyślnie usunięty
+        404:
+          description: Użytkownik nie został znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Endpoint do operacji na wszystkich użytkownikach (tworzenie)
+  /users:
+    # Metoda POST dla tworzenia nowego użytkownika
+    post:
+      summary: Utwórz nowego użytkownika
+      tags:
+        - Users
+      # Definicja ciała zapytania
+      requestBody: 
+        required: true
+        content:
+          application/json:
+            schema:
+              # Odniesienie do schematu dla tworzenia użytkownika
+              $ref: '#/components/schemas/UserCreate' 
+      responses:
+        201:
+          description: Użytkownik został pomyślnie utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        400:
+          description: Wystąpił błąd podczas tworzenia użytkownika
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# Definicje komponentów (schematów danych)
+components:
+  schemas:
+    # Schemat dla użytkownika
+    User:
+      # Typ danych: obiekt
+      type: object 
+      # Lista pól obiektu
+      properties: 
+        id:
+          type: integer
+          description: Unikalny identyfikator użytkownika
+        email:
+          type: string
+          format: email
+          description: Adres e-mail użytkownika
+        password:
+          type: string
+          description: Hasło użytkownika (hashowane)
+        dateOfBirth:
+          type: string
+          format: date
+          description: Data urodzenia użytkownika
+        gender:
+          type: string
+          description: Płeć użytkownika
+        weight:
+          type: number
+          format: float
+          description: Waga użytkownika
+        trainingExperience:
+          type: integer
+          description: Staż treningowy użytkownika (w miesiącach)
+        trainingGoal:
+          type: string
+          description: Cel treningowy użytkownika
+        allergens:
+          type: array
+          items:
+            type: string
+          description: Lista alergenów użytkownika
+        createdAt:
+          type: string
+          format: date-time
+          description: Data utworzenia użytkownika
+        updatedAt:
+          type: string
+          format: date-time
+          description: Data ostatniej aktualizacji użytkownika
+
+    # Schemat dla danych do tworzenia użytkownika
+    UserCreate:
+      type: object
+      # Lista wymaganych pól
+      required: 
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adres e-mail użytkownika
+        password:
+          type: string
+          description: Hasło użytkownika (hashowane)
+        dateOfBirth:
+          type: string
+          format: date
+          description: Data urodzenia użytkownika
+        gender:
+          type: string
+          description: Płeć użytkownika
+        weight:
+          type: number
+          format: float
+          description: Waga użytkownika
+        trainingExperience:
+          type: integer
+          description: Staż treningowy użytkownika (w miesiącach)
+        trainingGoal:
+          type: string
+          description: Cel treningowy użytkownika
+        allergens:
+          type: array
+          items:
+            type: string
+          description: Lista alergenów użytkownika
+
+    # Schemat dla danych do aktualizacji użytkownika
+    UserUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adres e-mail użytkownika
+        password:
+          type: string
+          description: Hasło użytkownika (hashowane)
+        dateOfBirth:
+          type: string
+          format: date
+          description: Data urodzenia użytkownika
+        gender:
+          type: string
+          description: Płeć użytkownika
+        weight:
+          type: number
+          format: float
+          description: Waga użytkownika
+        trainingExperience:
+          type: integer
+          description: Staż treningowy użytkownika (w miesiącach)
+        trainingGoal:
+          type: string
+          description: Cel treningowy użytkownika
+        allergens:
+          type: array
+          items:
+            type: string
+          description: Lista alergenów użytkownika
+
+    # Schemat dla błędów
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Opis błędu

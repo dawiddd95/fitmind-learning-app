@@ -1,0 +1,22 @@
+# Sekcja input definiuje, skąd Filebeat ma zbierać logi
+filebeat.inputs:
+  # Określamy typ wejścia - w tym przypadku "log", co oznacza pliki logów
+  - type: log
+    # Włączenie zbierania logów z określonego źródła
+    enabled: true
+    # Ścieżka do plików logów, które mają być monitorowane
+    paths:
+      - /path/to/audit-service/logs/*.log  # Ścieżka do katalogu logów serwisu audit-service
+    # Dodanie dodatkowych informacji do każdego rekordu logu
+    fields:
+      service: audit-service  # Pole wskazujące, że log pochodzi z serwisu audit-service
+
+# Sekcja output definiuje, gdzie Filebeat ma wysyłać zebrane logi
+output.logstash:
+  # Wskazujemy adres i port Logstash, który będzie przetwarzał logi
+  hosts: ["logstash:5044"]  # Host Logstash w sieci Dockera, nasłuchujący na porcie 5044
+
+# Konfiguracja szablonu indeksu w Elasticsearch
+setup.template.enabled: true  # Włączenie automatycznego tworzenia szablonu indeksu
+setup.template.name: "filebeat"  # Nazwa szablonu indeksu
+setup.template.pattern: "filebeat-*"  # Wzorzec nazw indeksów, np. filebeat-2025.01.21

@@ -1,0 +1,345 @@
+# Definicja usług, które będą działać w kontenerach
+services: 
+  # Nazwa usługi.
+  postgres:
+    # Obraz PostgreSQL. Wersja 15 jest stabilna na ten moment
+    image: postgres:15 
+    # Nazwa kontenera jaki ma być stworzony
+    container_name: fitmind-postgres-db 
+    # Automatyczne ponowne uruchomienie kontenera w przypadku awarii.
+    restart: always 
+    # Zmienne środowiskowe potrzebne do konfiguracji PostgreSQL.
+    environment: 
+      # Nazwa użytkownika bazy danych (domyślna dla PostgreSQL).
+      POSTGRES_USER_FILE: /run/secrets/db_user_secret
+      # Hasło użytkownika (ustawione na "admin").
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password_secret
+      # Nazwa domyślnej bazy danych.
+      POSTGRES_DB_FILE: /run/secrets/db_name_secret
+    ports: 
+      # Mapowanie portów: lokalny port 5433 (podany w instalacji postgres) jest dostępny na 5433 w kontenerze
+      - "5433:5433" 
+    volumes:
+      # Wolumen, który zapisuje dane bazy na dysku hosta.
+      - postgres_data:/var/lib/postgresql/data 
+    secrets:
+      - db_user_secret
+      - db_password_secret
+      - db_name_secret
+
+  redis:
+    # Obraz Redis ze stabilną wersją
+    image: redis:7
+    # Nazwa dodatkowego kontenera gdzie będzie Redis
+    container_name: fitmind-redis
+    # Port na jakim będzie redis - lokalny i dostępny w kontenerze dockera będą takie same
+    ports:
+      - "6379:6379"
+    # Automatyczne ponowne uruchomienie kontenera w przypadku awarii.
+    restart: always
+    # Komenda do uruchomienia Redis
+    # - "redis-server" uruchamia serwer Redis.
+    # - "--save 60 1": Redis zapisuje dane na dysk co 60 sekund, jeśli zmodyfikowano co najmniej 1 klucz
+    # - "--loglevel warning": Ustawia poziom logowania na "warning" (tylko ostrzeżenia i błędy)
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+
+  # Dodajemy usługę RabbitMQ jako system kolejkowania wiadomości do komunikacji między usługami
+  rabbitmq:
+    # Obraz Dockera, który zostanie pobrany z Docker Hub
+    # Używamy obrazu RabbitMQ z wbudowanym panelem zarządzania (managment)
+    image: rabbitmq:3-management
+    # Nazwa kontenera jaki będzie stworzony
+    container_name: rabbitmq
+    # Mapowanie portów między kontenerem, a hostem (będą takie same)
+    ports:
+      - "5672:5672"
+      # Natomiast tutaj jest port potrzebny do dostępu do panelu zarządzania RabbitMQ (UI)
+      - "15672:15672"
+    # Ustawiamy zmienne środowiskowe potrzebne do konfiguracji RabbitMQ
+    environment:
+      # Domyślny użytkownik administracyjny RabbitMQ
+      RABBITMQ_USER_FILE: /run/secrets/rabbitmq_user_secret
+      # Hasło dla domyślnego użytkownika
+      RABBITMQ_PASS_FILE: /run/secrets/rabbitmq_password_secret
+    # Przechowujemy dane RabbitMQ w volumenie o nazwie rabbitmq_data
+    # Dzięki temu RabbitMQ zachowa dane nawet po restarcie serwera
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    secrets:
+      - rabbitmq_user_secret
+      - rabbitmq_password_secret
+
+  # Dodajemy usługę Prometheus do monitorowania metryk systemowych i aplikacji
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  # Dodajemy usługę Grafana jako platforma wizualizacji danych z prometheus, 
+  # pozwala tworzyć interaktywne dashboardy
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"  
+    environment:
+      # Domyślny użytkownik administracyjny Grafana
+      GRAFANA_USER_FILE: /run/secrets/grafana_user_secret
+      # Hasło dla domyślnego użytkownika
+      GRAFANA_PASS_FILE: /run/secrets/grafana_password_secret
+    secrets:
+      - grafana_user_secret
+      - grafana_password_secret
+
+  # Elasticsearch - przechowywanie i przeszukiwanie logów
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.13
+    container_name: elasticsearch
+    environment:
+      # Określa, że ElasticSearch działa w trybie pojedynczego węzła (single-node) 
+      - discovery.type=single-node
+      # Zapobiega przesuwaniu pamięci przez system operacyjny, co może poprawić wydajność
+      - bootstrap.memory_lock=true
+      # Ustawia limity pamięci dla JVM (Java Virtual Machine) dla ElasticSearch
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    # limity zasobów dla systemu Linux
+    ulimits:
+      # określa limit ilości pamięci, którą proces może zablokować w pamięci RAM
+      # Dzięki tej konfiguracji ElasticSearch zapobiega swapowaniu pamięci na dysk 
+      # co poprawia wydajność, zapewnia stabilność, zapobiega błędom z niewystarczającą ilością dostępnej pamięci
+      memlock:
+        # soft - oznacza limit, który proces nie powinien przekraczać, ale może go dynamicznie zwiększyć w razie potrzeby.
+        # -1 to brak limitu co pozwala ElasticSearch zablokować dowolną ilość pamięci w RAM
+        soft: -1
+        # To absolutny limit pamięci, którego proces nie może przekroczyć.
+        # oznacza brak limitu, co pozwala ElasticSearch wykorzystać tyle pamięci, ile potrzebuje
+        hard: -1
+    ports:
+      # Port API Elasticsearch
+      - "9200:9200" 
+      # Port komunikacyjny klastrów 
+      - "9300:9300"  
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  # Logstash - przetwarzanie i filtrowanie logów
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.13
+    container_name: logstash
+    ports:
+      # Port do odbioru logów (Beats)
+      - "5044:5044"  
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+
+  # Filebeat zapisuje logi aplikacji do plików 
+  # Filebeat zajmie się przesyłaniem tych plików do Logstash, a Logstash przekaże je do Elasticsearch
+  # Kibana umożliwi wizualizację logów.
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.17.13
+    container_name: filebeat
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - ./services/audit/logs:/path/to/audit-service/logs
+    depends_on:
+      - logstash
+
+  # Kibana - wizualizacja danych
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.13
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      # Port UI Kibana
+      - "5601:5601"  
+
+  # Exportery usług
+  # --------------------------
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prom/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      # Ten sam sekret jest potrzebny do połączenia z DB w moich mikroserwisach
+      DATA_SOURCE_NAME: /run/secrets/db_url_secret
+    depends_on:
+      - postgres
+    ports:
+      - "9187:9187"
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      - redis
+    ports:
+      - "9121:9121"
+
+  # RabbitMQ Exporter
+  rabbitmq-exporter:
+    image: kbudde/rabbitmq-exporter:latest
+    container_name: rabbitmq-exporter
+    environment:
+      RABBIT_URL: /run/secrets/rabbitmq_url_secret
+    depends_on:
+      - rabbitmq
+    ports:
+      - "15692:15692"
+
+
+  # Dodajemy nasz mikroserwis Auth
+  # Nazwa pola jest spójna z nazwą mikroserwisu w package.json serwisu  "name": "auth-service",
+  auth-service:
+    # Konfiguracja Auth 
+    # Zamieniamy to
+    build:
+      # Katalog, w którym znajduje się Dockerfile dla auth-service
+      context: ./services/auth 
+    # Na to:
+    image: fitmind-auth-service:latest
+    # Nazwa kontenera auth-service w docker (jako obraz dockera)
+    container_name: fitmind-auth-service 
+    # Mapowanie portu lokalnego 4000 na kontenerowy 4000
+    ports:
+      - "4000:4000" 
+    environment:
+      # Zmienne środowiskowe potrzebne do działania auth-service
+      # JWT_SECRET oraz JWT_REFRESH_SECRET trzymamy w docker secret manager
+      # Jest to bezpieczniejsze niż trzymać w .env lub w tym pliku jak to poniżej
+      # - JWT_SECRET=your_jwt_secret
+      # - JWT_REFRESH_SECRET=your_refresh_jwt_secret
+      REDIS_HOST_FILE: /run/secrets/redis_host_secret
+      REDIS_PORT_FILE: /run/secrets/redis_port_secret
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      JWT_REFRESH_SECRET_FILE: /run/secrets/jwt_refresh_secret
+      DATABASE_URL_FILE: /run/secrets/db_url_secret
+    # Docker secrets jakie dodamy/dodaliśmy do docker secrets
+    secrets:
+      - jwt_secret
+      - jwt_refresh_secret
+      - db_url_secret
+      - redis_host_secret
+      - redis_port_secret
+    # Zależności - kontenery jakie będą używane w tym serwisie 
+    depends_on:
+      # Auth Service zależy od bazy danych PostgreSQL
+      - postgres 
+      # Auth Service zależy od Redis
+      - redis    
+
+
+  # Dodajemy mikroserwis user-service
+  user-service:
+    build:
+      # Ścieżka do Dockerfile serwisu użytkownika
+      context: ./services/user 
+    # Nazwa obrazu
+    image: fitmind-user-service:latest 
+    # Nazwa kontenera
+    container_name: fitmind-user-service 
+    # Mapowanie portów dla user-service
+    ports:
+      - "4001:4001" 
+    environment:
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      JWT_REFRESH_SECRET_FILE: /run/secrets/jwt_refresh_secret
+      DATABASE_URL_FILE: /run/secrets/db_url_secret
+    secrets:
+      - jwt_secret
+      - jwt_refresh_secret
+      - db_url_secret
+    depends_on:
+      - postgres
+  
+
+  # Dodajemy mikroserwis audit-service
+  # Nazwa pola jest spójna z nazwą mikroserwisu w package.json serwisu  "name": "audit-service",
+  audit-service:
+    build:
+      # Ścieżka do Dockerfile serwisu użytkownika
+      context: ./services/audit 
+    # Nazwa obrazu
+    image: fitmind-audit-service:latest 
+    # Nazwa kontenera
+    container_name: fitmind-audit-service 
+    ports:
+      - "4002:4002"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_FILE: /run/secrets/db_url_secret
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      JWT_REFRESH_SECRET_FILE: /run/secrets/jwt_refresh_secret
+      # Ten sekret został ustawiony przy konfiguracji RabbitMQ
+      # Najpierw trzeba skonfigurować RabbitMQ przed wykonaniem tego kroku
+      RABBIT_URL: /run/secrets/rabbitmq_url_secret
+      # Domyślny użytkownik administracyjny RabbitMQ
+      RABBITMQ_USER_FILE: /run/secrets/rabbitmq_user_secret
+      # Hasło dla domyślnego użytkownika
+      RABBITMQ_PASS_FILE: /run/secrets/rabbitmq_password_secret
+    secrets:
+      - db_url_secret
+      - rabbitmq_url_secret
+      - rabbitmq_user_secret
+      - rabbitmq_password_secret
+    depends_on:
+      - rabbitmq
+      - postgres
+      - elasticsearch
+   
+  
+# Definicja sekretów Dockera
+secrets:
+  jwt_secret:
+    external: true
+  jwt_refresh_secret:
+    external: true
+  db_url_secret:
+    external: true
+  db_user_secret:
+    external: true
+  db_password_secret:
+    external: true
+  db_name_secret:
+    external: true
+  redis_host_secret:
+    external: true
+  redis_port_secret:
+    external: true
+  rabbitmq_user_secret:
+    external: true
+  rabbitmq_password_secret:
+    external: true
+  grafana_user_secret:
+    external: true
+  grafana_password_secret:
+    external: true
+  rabbitmq_url_secret:
+    external: true
+
+# Definicja wolumenów Dockera.
+volumes: 
+  # Wolumen do przechowywania danych PostgreSQL.
+  postgres_data: 
+    # Dzięki temu dane bazy nie zostaną utracone po usunięciu lub zatrzymaniu kontenera.
+    # Stworzy automatycznie anonimowy wolumen w domyślnym katalogu danych
+  # Wolumen do przechowywania danych RabbitMQ.
+  rabbitmq_data:
+    # Przechowujemy dane RabbitMQ w volumenie o nazwie rabbitmq_data
+    # Dzięki temu RabbitMQ zachowa dane nawet po restarcie serwera
+  # Wolumen do przechowywania danych Prometheus
+  prometheus_data:
+  # Wolumen do przechowywania danych Grafana
+  grafana_data:
+  elasticsearch_data:

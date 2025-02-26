@@ -1,0 +1,79 @@
+# Globalne ustawienia Prometheus
+global:
+  # Określamy, co ile czasu Prometheus zbiera dane z endpointów
+  # Ustawiamy tutaj co 15 sekund
+  scrape_interval: 15s  
+
+# Konfiguracja celów do monitorowania
+scrape_configs:
+  # Monitorowanie samego Prometheus
+  # Prometheus zbiera metryki dotyczące swojego działania (np. ile danych przetwarza, ile ma aktywnych celów)
+  - job_name: 'prometheus'
+    # Lista endpointów, które Prometheus monitoruje
+    static_configs:
+      # Endpoint Prometheus jest dostępny na porcie 9090
+      - targets: ['prometheus:9090']
+
+  # Monitorowanie RabbitMQ
+  # Zbieranie metryk dotyczących kolejek wiadomości, połączeń i obciążenia RabbitMQ
+  - job_name: 'rabbitmq'
+    # Lista endpointów RabbitMQ Prometheus Exporter
+    static_configs:
+      # RabbitMQ Prometheus Exporter jest dostępny na porcie 15692
+      - targets: ['rabbitmq:15692']
+
+  # Monitorowanie PostgreSQL
+  # Zbieranie metryk dotyczących bazy danych PostgreSQL (np. liczba aktywnych połączeń, czas wykonywania zapytań)
+  - job_name: 'postgres'
+    # Lista endpointów PostgreSQL Exporter
+    static_configs:
+      # PostgreSQL Exporter jest dostępny na porcie 9187
+      # Port używany przez exporter PostgreSQL
+      # Mimo, że do nasłuchiwania bazy danych używamy port 5433, który jest też zadeklarowany w docker-compose
+      # To jednak exporter ma inny port niż nasłuchiwanie bazy danych
+      # Port exportera to 9187
+      - targets: ['postgres-exporter:9187']
+
+  # Monitorowanie Redis
+  # Zbieranie metryk dotyczących pamięci podręcznej Redis (np. zużycie pamięci, liczba kluczy, opóźnienia w zapytaniach)
+  - job_name: 'redis'
+    # Lista endpointów Redis Exporter
+    static_configs:
+      # Redis Exporter jest dostępny na porcie 9121
+      # Port używany przez Redis Exporter
+      - targets: ['redis-exporter:9121']
+
+  # Monitorowanie auth-service
+  # Zbieranie metryk dotyczących usługi uwierzytelniania (np. liczba żądań, czas odpowiedzi, błędy HTTP)
+  - job_name: 'auth-service'
+    # Lista endpointów usługi auth-service
+    static_configs:
+      # Auth-service jest dostępny na porcie 4000
+      # Na endpoincie /metrics będziemy zbierać dane do audytu
+      # Więc w przyszłości target to może być 
+      # - targets: ['auth-service:4000/metrics']
+      # Ale prometheus raczej sam domyślnie dopisuje /metrics i z tego nasłuchuje
+      - targets: ['auth-service:4000']
+
+  # Monitorowanie user-service
+  # Zbieranie metryk dotyczących usługi zarządzania użytkownikami (np. liczba żądań, czas odpowiedzi, błędy HTTP)
+  - job_name: 'user-service'
+    # Lista endpointów usługi user-service
+    static_configs:
+      # User-service jest dostępny na porcie 4001
+      # Na endpoincie /metrics będziemy zbierać dane do audytu
+      # Więc w przyszłości target to może być 
+      # - targets: ['user-service:4001/metrics'] 
+      # Ale prometheus raczej sam domyślnie dopisuje /metrics i z tego nasłuchuje
+      - targets: ['user-service:4001'] 
+
+  # Monitorowanie audit-service
+  - job_name: 'audit-service'
+    # Lista endpointów usługi user-service
+    static_configs:
+      # User-service jest dostępny na porcie 4001
+      # Na endpoincie /metrics będziemy zbierać dane do audytu
+      # Więc w przyszłości target to może być 
+      # - targets: ['audit-service:4002/metrics'] 
+      # Ale prometheus raczej sam domyślnie dopisuje /metrics i z tego nasłuchuje
+      - targets: ['audit-service:4002'] 

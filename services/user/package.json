@@ -1,0 +1,21 @@
+{
+  "name": "user-service",
+  "version": "1.0.0",
+  "description": "Mikroserwis do obsługi informacji o użytkowniku",
+  "main": "user.js",
+  "scripts": {
+    "start": "node ../../server.js",
+    "dev": "nodemon ../../server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.5",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  }
+}
